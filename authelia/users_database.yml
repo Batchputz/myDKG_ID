@@ -1,0 +1,13 @@
+---
+# MAGNUS Users Database
+# Generate password hashes with:
+# podman run --rm authelia/authelia:latest authelia crypto hash generate argon2 --password 'YourPassword'
+
+users:
+  admin:
+    displayname: "Administrator"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$YGIc733e23t4TIGnuDAnCg$U7dsiJNuK61K1SbX3XpjC/VN65Vmwilokh58+5yQ7zg"
+    email: admin@magnus.local
+    groups:
+      - admins
+      - users

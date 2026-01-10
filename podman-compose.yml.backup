@@ -1,0 +1,25 @@
+services:
+  # Authelia authentication server (reachable locally for Traefik)
+  authelia:
+    image: docker.io/authelia/authelia:latest
+    container_name: mydkg-authelia
+    volumes:
+      - ./authelia:/config
+    environment:
+      - TZ=Europe/Berlin
+    ports:
+      - "127.0.0.1:9091:9091"  # expose only on loopback for Traefik
+    restart: unless-stopped
+
+  # Redis session store for Authelia
+  redis:
+    image: docker.io/redis:alpine
+    container_name: mydkg-redis
+    environment:
+      - SKIP_FIX_PERMS=1
+    volumes:
+      - ./redis:/data
+    expose:
+      - "6379"
+    command: redis-server --save 60 1 --loglevel warning
+    restart: unless-stopped
