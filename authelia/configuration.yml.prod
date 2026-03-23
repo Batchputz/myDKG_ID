@@ -19,7 +19,7 @@ ntp:
   disable_startup_check: true
 
 totp:
-  issuer: magnus.int.findoku.de
+  issuer: magnus.local
   period: 30
   skew: 1
 
@@ -42,12 +42,12 @@ access_control:
   default_policy: deny
   rules:
     - domain:
-        - 'magnus.int.findoku.de'
+        - 'magnus.findoku.de'
       policy: one_factor
       resources:
         - '^/.*$'
     - domain:
-        - 'kihub.int.findoku.de'
+        - 'kihub.findoku.de'
       policy: one_factor
       resources:
         - '^/.*$'
@@ -57,9 +57,9 @@ session:
   expiration: 1h
   inactivity: 5m
   cookies:
-    - domain: 'int.findoku.de'
-      authelia_url: 'https://auth.int.findoku.de'
-      default_redirection_url: 'https://kihub.int.findoku.de'
+    - domain: 'findoku.de'
+      authelia_url: 'https://auth.findoku.de'
+      default_redirection_url: 'https://magnus.findoku.de'
   
   redis:
     host: 127.0.0.1
