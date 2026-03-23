@@ -2,8 +2,8 @@
 # myDKG_ID deploy script
 # Usage: FINDOKU_ENV=<dev|int|prod> ./scripts/deploy.sh <up|down|restart|status|render>
 #
-# Reads config/authelia.yaml, renders templates, and manages the podman-compose lifecycle.
-# Requires: yq, envsubst, podman-compose
+# Reads config/authelia.yaml, renders templates, and manages the compose lifecycle.
+# Requires: yq, envsubst, docker compose OR podman-compose
 
 set -euo pipefail
 
@@ -17,12 +17,22 @@ OUTPUT="$PROJECT_DIR/authelia/configuration.yml"
 # ---------------------------------------------------------------------------
 # Validate prerequisites
 # ---------------------------------------------------------------------------
-for cmd in yq envsubst podman-compose; do
+for cmd in yq envsubst; do
   if ! command -v "$cmd" &>/dev/null; then
     echo "ERROR: '$cmd' is required but not found in PATH." >&2
     exit 1
   fi
 done
+
+# Detect container compose tool: prefer docker compose (v2), fall back to podman-compose
+if docker compose version &>/dev/null; then
+  COMPOSE_CMD="docker compose"
+elif command -v podman-compose &>/dev/null; then
+  COMPOSE_CMD="podman-compose"
+else
+  echo "ERROR: Neither 'docker compose' nor 'podman-compose' found in PATH." >&2
+  exit 1
+fi
 
 # ---------------------------------------------------------------------------
 # Validate FINDOKU_ENV
@@ -77,6 +87,7 @@ echo "    Domain:      $FINDOKU_DOMAIN"
 echo "    Auth URL:    $FINDOKU_AUTH_URL"
 echo "    Redirect:    $FINDOKU_DEFAULT_REDIRECT"
 echo "    Policy:      $FINDOKU_AUTH_POLICY"
+echo "    Compose:     $COMPOSE_CMD"
 
 # ---------------------------------------------------------------------------
 # Render template
@@ -96,24 +107,28 @@ case "$ACTION" in
   up)
     render_template
     echo "==> Starting containers..."
-    podman-compose -f "$PROJECT_DIR/podman-compose.yml" up -d
+    $COMPOSE_CMD -f "$PROJECT_DIR/podman-compose.yml" up -d
     ;;
   down)
     echo "==> Stopping containers..."
-    podman-compose -f "$PROJECT_DIR/podman-compose.yml" down
+    $COMPOSE_CMD -f "$PROJECT_DIR/podman-compose.yml" down
     ;;
   restart)
     render_template
     echo "==> Restarting containers..."
-    podman-compose -f "$PROJECT_DIR/podman-compose.yml" down
-    podman-compose -f "$PROJECT_DIR/podman-compose.yml" up -d
+    $COMPOSE_CMD -f "$PROJECT_DIR/podman-compose.yml" down
+    $COMPOSE_CMD -f "$PROJECT_DIR/podman-compose.yml" up -d
     ;;
   render)
     render_template
     echo "==> Template rendered (no containers started)."
     ;;
   status)
-    podman ps --filter "name=mydkg" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+    if command -v podman &>/dev/null; then
+      podman ps --filter "name=mydkg" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+    else
+      docker ps --filter "name=mydkg" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+    fi
     ;;
   *)
     echo "Usage: FINDOKU_ENV=<dev|int|prod> $0 <up|down|restart|render|status>" >&2
