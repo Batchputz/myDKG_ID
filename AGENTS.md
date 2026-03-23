@@ -4,49 +4,59 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 
 ## What This Repo Is
 
-myDKG ID is an **infrastructure-only** repository — no application code, only container orchestration and configuration. It deploys a standalone [Authelia](https://www.authelia.com/) authentication portal branded as "myDKG ID", serving as the centralized SSO gateway for all `*.findoku.de` services (Magnus, KIHub, etc.).
+myDKG ID is an **infrastructure-only** repository — no application code, only container orchestration and configuration. It deploys a standalone [Authelia](https://www.authelia.com/) authentication portal branded as "myDKG ID", serving as the centralized SSO gateway for all `*.findoku.de` services.
 
 ## Architecture
 
 ```
-Client ──▶ NGINX (TLS termination)
-              ├─ :8443  dev  (auth.int.findoku.de)
-              └─ :443   prod (auth.findoku.de)
-                    │
-                    ▼
-              Authelia (:9091)
-              ├── file-based user DB  (authelia/users_database.yml, Argon2id)
-              ├── SQLite storage      (authelia/db.sqlite3)
-              ├── Redis sessions      (127.0.0.1:6379)
-              └── filesystem notifier (authelia/notification.txt)
+Client ──▶ FinEdge_Gateway (Traefik, TLS termination)
+                │
+                ▼
+          Authelia (:9091)
+          ├── file-based user DB  (authelia/users_database.yml, Argon2id)
+          ├── SQLite storage      (authelia/db.sqlite3)
+          ├── Redis sessions      (127.0.0.1:6379)
+          └── filesystem notifier (authelia/notification.txt)
 ```
 
-All three containers run with `network_mode: host`, so they bind directly to the host network — no inter-container DNS.
+Both containers run with `network_mode: host`, binding directly to the host network. TLS termination is handled by FinEdge_Gateway (Traefik), not by this stack.
 
-### Environment Variants
+### Environment Model
 
-| File | Cookie domain | Authelia URL | Protected domains |
-|------|--------------|--------------|-------------------|
-| `authelia/configuration.yml` (dev) | `int.findoku.de` | `https://auth.int.findoku.de` | `magnus.int.findoku.de`, `kihub.int.findoku.de` |
-| `authelia/configuration.yml.prod` | `findoku.de` | `https://auth.findoku.de` | `magnus.findoku.de`, `kihub.findoku.de` |
+A global `FINDOKU_ENV` variable (`dev`, `int`, or `prod`) controls all configuration. Both this repo and FinEdge_Gateway must use the same value.
 
-To switch environments, replace `configuration.yml` with the appropriate variant and restart.
+| Env | Domain suffix | Auth URL |
+|-----|--------------|----------|
+| `dev` | `dev.findoku.de` | `https://auth.dev.findoku.de` |
+| `int` | `int.findoku.de` | `https://auth.int.findoku.de` |
+| `prod` | `findoku.de` | `https://auth.findoku.de` |
+
+Environment-specific settings live in `config/authelia.yaml`. The deploy script renders `templates/configuration.yml.tpl` into `authelia/configuration.yml` via `envsubst`.
+
+### Protected Services
+
+Services protected behind Authelia forward-auth (defined in `config/authelia.yaml`):
+
+- **magnus** — Knowledge base
+- **kihub** — AI Hub
+- **neuromark** — Document processing pipeline
+
+To add a new service: add it to `config/authelia.yaml` under `services`, then add a matching `access_control` rule block in `templates/configuration.yml.tpl`.
 
 ### How Other Services Integrate
 
-Protected services (Magnus, KIHub) must send a subrequest to Authelia's verify endpoint:
-- Dev: `https://auth.int.findoku.de/api/verify`
-- Prod: `https://auth.findoku.de/api/verify`
+Protected services must be routed through FinEdge_Gateway with the `forwardauth_authelia` middleware. The gateway sends a subrequest to Authelia's verify endpoint at `https://auth.{domain}/api/verify`.
 
 ## Commands
 
-### Start / Stop the Stack
+### Deploy the Stack
 
 ```bash
-podman-compose up -d          # start all (authelia + redis)
-podman-compose down            # stop all
-podman-compose logs -f         # tail all logs
-podman-compose logs -f authelia  # tail authelia only
+FINDOKU_ENV=dev ./scripts/deploy.sh up        # render config + start containers
+FINDOKU_ENV=dev ./scripts/deploy.sh down       # stop containers
+FINDOKU_ENV=dev ./scripts/deploy.sh restart    # render + restart
+FINDOKU_ENV=dev ./scripts/deploy.sh render     # render config only (no containers)
+FINDOKU_ENV=dev ./scripts/deploy.sh status     # show container status
 ```
 
 ### Create a New User
@@ -69,15 +79,18 @@ podman exec mydkg-redis redis-cli -h 127.0.0.1 DBSIZE     # count session keys
 
 ## Key Files to Know
 
-- `authelia/configuration.yml` — **active** Authelia config (dev). All auth policy, session, and storage settings live here.
-- `authelia/configuration.yml.prod` — production variant; differs only in domain/URL values.
-- `authelia/.secrets` — Authelia secrets file. **Never commit real secret values.**
-- `authelia/users_database.yml` — flat-file user store. Passwords are Argon2id hashes.
-- `nginx/nginx.conf` — TLS-terminating reverse proxy; upstreams to Authelia on `:9091`.
-- `nginx/certs/` — TLS certificate and key (not committed).
+- `config/authelia.yaml` — Single source of truth for per-environment settings (domains, policy, services).
+- `templates/configuration.yml.tpl` — Authelia config template with `${VARIABLE}` placeholders.
+- `scripts/deploy.sh` — Reads `FINDOKU_ENV`, extracts settings via `yq`, renders template, manages compose lifecycle.
+- `authelia/.secrets` — Secrets file (JWT, session, storage keys). **Never commit.**
+- `authelia/users_database.yml` — Flat-file user store. Passwords are Argon2id hashes.
+- `authelia/configuration.yml` — **Rendered output** (generated, gitignored). Do not edit directly.
+- `podman-compose.yml` — Container definitions for Authelia + Redis.
 
 ## Conventions
 
-- Configuration changes go into the YAML files, never hard-coded into scripts or compose overrides.
-- The `.backup` suffixed files (`podman-compose.yml.backup`, `configuration.yml.backup`) preserve the previous working state before a change — keep this pattern when making significant config changes.
+- Configuration changes go into `config/authelia.yaml` or `templates/configuration.yml.tpl`, never hardcoded.
+- The rendered `authelia/configuration.yml` is gitignored — always re-render via `deploy.sh`.
+- `FINDOKU_ENV` must match between this repo and FinEdge_Gateway.
+- Secrets are loaded from `authelia/.secrets` at deploy time, not stored in config YAML.
 - Redis is scoped per stack (each solution gets its own Redis instance for Authelia sessions).

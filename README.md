@@ -1,58 +1,77 @@
 # myDKG ID (Authelia) - Standalone Authentication Stack
 
-This stack provides a reusable authentication portal (Authelia) branded as "myDKG ID" for multiple solutions.
+Centralized SSO gateway for all `*.findoku.de` services, powered by [Authelia](https://www.authelia.com/).
 
 ## Structure
 
 ```
 myDKG_ID/
-├── podman-compose.yml        # Authelia + Redis + NGINX portal
-├── authelia/                 # Config and data (migrated)
-│   ├── configuration.yml
-│   └── users_database.yml
-├── redis/                    # Redis persistence
-├── nginx/
-│   ├── nginx.conf            # Serves auth.findoku.de on 8443 (dev) and 443 (prod)
-│   └── certs/
-├── setup-auth.sh             # Optional helper (copied from Magnus)
-├── create-user.sh            # Password hash helper
-└── README.md                 # This file
+├── config/
+│   └── authelia.yaml          # Per-environment settings (single source of truth)
+├── templates/
+│   └── configuration.yml.tpl  # Authelia config template (envsubst placeholders)
+├── scripts/
+│   └── deploy.sh              # Renders template + manages podman-compose
+├── authelia/
+│   ├── .secrets               # Secrets (never committed)
+│   ├── users_database.yml     # User store (Argon2id hashes)
+│   ├── configuration.yml      # Rendered output (gitignored)
+│   ├── db.sqlite3             # Runtime (gitignored)
+│   └── notification.txt       # Runtime (gitignored)
+├── redis/                     # Redis persistence (gitignored)
+├── podman-compose.yml         # Authelia + Redis containers
+├── create-user.sh             # Password hash helper
+└── README.md
 ```
 
-## Migrate data from Magnus
+## Prerequisites
 
-From the Magnus root:
+- `podman-compose`
+- `yq` (YAML processor)
+- `envsubst` (from `gettext`)
+
+## Quick Start
 
 ```bash
-# Copy configuration and data
-rsync -a ./authelia/ \
-  /home/Batchputz/urkundi/clients/DKG_Dresdner_Konzeptberatungsgesellschaft_mbH/solutions/myDKG_ID/authelia/
+# Render config and start the stack
+FINDOKU_ENV=dev ./scripts/deploy.sh up
 
-rsync -a ./redis/ \
-  /home/Batchputz/urkundi/clients/DKG_Dresdner_Konzeptberatungsgesellschaft_mbH/solutions/myDKG_ID/redis/
-
-# Copy dev certs (or place production certs accordingly)
-rsync -a ./certs/ \
-  /home/Batchputz/urkundi/clients/DKG_Dresdner_Konzeptberatungsgesellschaft_mbH/solutions/myDKG_ID/nginx/certs/
+# Other commands
+FINDOKU_ENV=dev ./scripts/deploy.sh down       # stop
+FINDOKU_ENV=dev ./scripts/deploy.sh restart    # re-render + restart
+FINDOKU_ENV=dev ./scripts/deploy.sh render     # render only
+FINDOKU_ENV=dev ./scripts/deploy.sh status     # container status
 ```
 
-Verify in `authelia/configuration.yml`:
-- cookie domain remains `findoku.de`
-- dev: `authelia_url: https://auth.findoku.de:8443`
-- prod: `authelia_url: https://auth.findoku.de`
+`FINDOKU_ENV` must match the value used by FinEdge_Gateway.
 
-## Run myDKG ID
+## Environments
+
+| Env | Domain | Auth URL |
+|-----|--------|----------|
+| `dev` | `dev.findoku.de` | `https://auth.dev.findoku.de` |
+| `int` | `int.findoku.de` | `https://auth.int.findoku.de` |
+| `prod` | `findoku.de` | `https://auth.findoku.de` |
+
+## Protected Services
+
+- `magnus` — Knowledge base
+- `kihub` — AI Hub
+- `neuromark` — Document processing
+
+To add a service: update `config/authelia.yaml` (services list) and `templates/configuration.yml.tpl` (access_control rule).
+
+## Create a User
 
 ```bash
-cd /home/Batchputz/urkundi/clients/DKG_Dresdner_Konzeptberatungsgesellschaft_mbH/solutions/myDKG_ID
-podman-compose up -d
+./create-user.sh 'ThePassword'
 ```
 
-Dev portal: https://auth.findoku.de:8443  
-Prod portal: https://auth.findoku.de
+Paste the hash into `authelia/users_database.yml`.
 
 ## Notes
-- Each solution keeps its own Redis for Authelia sessions (scoped per stack).
-- Magnus and other solutions must point their auth_request verify to the external portal:
-  - Dev: `https://auth.findoku.de:8443/api/verify`
-  - Prod: `https://auth.findoku.de/api/verify`
+
+- TLS termination is handled by FinEdge_Gateway (Traefik), not this stack.
+- `authelia/configuration.yml` is generated — edit the template or config YAML instead.
+- Secrets live in `authelia/.secrets` and are injected at render time.
+- Each stack has its own Redis instance for Authelia sessions.

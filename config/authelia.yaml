@@ -1,0 +1,25 @@
+# myDKG_ID — Authelia Environment Configuration
+# This file is the single source of truth for all environment-specific settings.
+# scripts/deploy.sh reads FINDOKU_ENV and extracts the matching block.
+
+environments:
+  dev:
+    domain: dev.findoku.de
+    auth_policy: one_factor
+    default_redirect_service: kihub
+  int:
+    domain: int.findoku.de
+    auth_policy: one_factor
+    default_redirect_service: kihub
+  prod:
+    domain: findoku.de
+    auth_policy: one_factor
+    default_redirect_service: kihub
+
+# Protected services behind Authelia forward-auth.
+# Adding a new service here requires a matching access_control block
+# in templates/configuration.yml.tpl.
+services:
+  - magnus
+  - kihub
+  - neuromark

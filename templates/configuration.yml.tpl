@@ -16,16 +16,16 @@ log:
   format: text
 
 ntp:
-  disable_startup_check: false  # Enable for production
+  disable_startup_check: true
 
 totp:
-  issuer: magnus.findoku.de
+  issuer: ${FINDOKU_TOTP_ISSUER}
   period: 30
   skew: 1
 
 identity_validation:
   reset_password:
-    jwt_secret: YOUR_JWT_SECRET_HERE
+    jwt_secret: ${FINDOKU_JWT_SECRET}
 
 authentication_backend:
   file:
@@ -42,22 +42,32 @@ access_control:
   default_policy: deny
   rules:
     - domain:
-        - 'magnus.findoku.de'
-      policy: two_factor  # Enable 2FA for production
+        - 'magnus.${FINDOKU_DOMAIN}'
+      policy: ${FINDOKU_AUTH_POLICY}
+      resources:
+        - '^/.*$'
+    - domain:
+        - 'kihub.${FINDOKU_DOMAIN}'
+      policy: ${FINDOKU_AUTH_POLICY}
+      resources:
+        - '^/.*$'
+    - domain:
+        - 'neuromark.${FINDOKU_DOMAIN}'
+      policy: ${FINDOKU_AUTH_POLICY}
       resources:
         - '^/.*$'
 
 session:
-  secret: YOUR_SESSION_SECRET_HERE
+  secret: ${FINDOKU_SESSION_SECRET}
   expiration: 1h
   inactivity: 5m
   cookies:
-    - domain: 'findoku.de'
-      authelia_url: 'https://auth.findoku.de'
-      default_redirection_url: 'https://magnus.findoku.de'
-  
+    - domain: '${FINDOKU_DOMAIN}'
+      authelia_url: '${FINDOKU_AUTH_URL}'
+      default_redirection_url: '${FINDOKU_DEFAULT_REDIRECT}'
+
   redis:
-    host: redis
+    host: 127.0.0.1
     port: 6379
 
 regulation:
@@ -66,15 +76,10 @@ regulation:
   ban_time: 5m
 
 storage:
-  encryption_key: YOUR_STORAGE_ENCRYPTION_KEY_HERE
+  encryption_key: ${FINDOKU_STORAGE_SECRET}
   local:
     path: /config/db.sqlite3
 
 notifier:
-  smtp:
-    host: smtp.example.com
-    port: 587
-    username: noreply@findoku.de
-    password: YOUR_SMTP_PASSWORD
-    sender: noreply@findoku.de
-    subject: "[Magnus] {title}"
+  filesystem:
+    filename: /config/notification.txt
