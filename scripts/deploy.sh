@@ -62,9 +62,9 @@ fi
 # ---------------------------------------------------------------------------
 # Extract settings from authelia.yaml
 # ---------------------------------------------------------------------------
-FINDOKU_DOMAIN="$(yq ".environments.$ENV.domain" "$CONFIG_FILE")"
-FINDOKU_AUTH_POLICY="$(yq ".environments.$ENV.auth_policy" "$CONFIG_FILE")"
-DEFAULT_REDIRECT_SVC="$(yq ".environments.$ENV.default_redirect_service" "$CONFIG_FILE")"
+FINDOKU_DOMAIN="$(yq -r ".environments.$ENV.domain" "$CONFIG_FILE")"
+FINDOKU_AUTH_POLICY="$(yq -r ".environments.$ENV.auth_policy" "$CONFIG_FILE")"
+DEFAULT_REDIRECT_SVC="$(yq -r ".environments.$ENV.default_redirect_service" "$CONFIG_FILE")"
 
 # Derived values
 FINDOKU_TOTP_ISSUER="auth.${FINDOKU_DOMAIN}"
