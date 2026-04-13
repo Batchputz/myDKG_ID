@@ -56,6 +56,11 @@ access_control:
       policy: ${FINDOKU_AUTH_POLICY}
       resources:
         - '^/.*$'
+    - domain:
+        - 'genesis.${FINDOKU_DOMAIN}'
+      policy: ${FINDOKU_AUTH_POLICY}
+      resources:
+        - '^/.*$'
 
 session:
   secret: ${FINDOKU_SESSION_SECRET}
