@@ -56,6 +56,11 @@ access_control:
       policy: one_factor
       resources:
         - '^/.*$'
+    - domain:
+        - 'genesis.dev.findoku.de'
+      policy: one_factor
+      resources:
+        - '^/.*$'
 
 session:
   secret: ranUDJ6nyDQkmLwzv2/JFqWyiXZtn2Z4YWCg8VtCSHVa2Sf+H2hpYDzdAOuiPJeW1kq7ZvOZnAL1/3YJf7VbAQ==
