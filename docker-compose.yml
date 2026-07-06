@@ -1,0 +1,34 @@
+# myDKG ID — Production deployment compose file
+#
+# Workflow:
+#   1. Dev machine: FINDOKU_ENV=prod ./scripts/deploy.sh render
+#   2. Dev machine: docker build -t ghcr.io/batchputz/mydkg-authelia:latest .
+#   3. Dev machine: docker push ghcr.io/batchputz/mydkg-authelia:latest
+#   4. Target:      rsync authelia/ target:/opt/mydkg/authelia/
+#   5. Target:      docker compose -f docker-compose.yml up -d
+#
+# The authelia/ directory (configuration.yml, users_database.yml, .secrets,
+# db.sqlite3) is synced separately and mounted as a volume — zero secrets
+# are baked into the image.
+
+services:
+  authelia:
+    image: ghcr.io/batchputz/mydkg-authelia:latest
+    container_name: mydkg-authelia
+    network_mode: host
+    environment:
+      - TZ=${FINDOKU_TZ}
+    volumes:
+      - ./authelia:/config
+    restart: unless-stopped
+
+  redis:
+    image: docker.io/redis:alpine
+    container_name: mydkg-redis
+    network_mode: host
+    environment:
+      - SKIP_FIX_PERMS=1
+    volumes:
+      - ./redis:/data
+    command: redis-server --bind 127.0.0.1 --save 60 1 --loglevel warning
+    restart: unless-stopped

@@ -1,20 +1,78 @@
 # myDKG_ID — Authelia Environment Configuration
 # This file is the single source of truth for all environment-specific settings.
 # scripts/deploy.sh reads FINDOKU_ENV and extracts the matching block.
+#
+# For full documentation of every parameter, see config/authelia.example.yaml
 
 environments:
   dev:
     domain: dev.findoku.de
     auth_policy: one_factor
     default_redirect_service: kihub
+    server:
+      buffers:
+        read: 4096
+        write: 4096
+      timeouts:
+        read: 6s
+        write: 6s
+        idle: 30s
+    log:
+      level: info
+    session:
+      expiration: 1h
+      inactivity: 5m
+    regulation:
+      max_retries: 3
+      find_time: 2m
+      ban_time: 5m
+    timezone: Europe/Berlin
+
   int:
     domain: int.findoku.de
     auth_policy: one_factor
     default_redirect_service: kihub
+    server:
+      buffers:
+        read: 4096
+        write: 4096
+      timeouts:
+        read: 6s
+        write: 6s
+        idle: 30s
+    log:
+      level: info
+    session:
+      expiration: 1h
+      inactivity: 5m
+    regulation:
+      max_retries: 3
+      find_time: 2m
+      ban_time: 5m
+    timezone: Europe/Berlin
+
   prod:
     domain: findoku.de
     auth_policy: one_factor
     default_redirect_service: kihub
+    server:
+      buffers:
+        read: 4096
+        write: 4096
+      timeouts:
+        read: 6s
+        write: 6s
+        idle: 30s
+    log:
+      level: info
+    session:
+      expiration: 1h
+      inactivity: 5m
+    regulation:
+      max_retries: 3
+      find_time: 2m
+      ban_time: 5m
+    timezone: Europe/Berlin
 
 # Protected services behind Authelia forward-auth.
 # Adding a new service here requires a matching access_control block

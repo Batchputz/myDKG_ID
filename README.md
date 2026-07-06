@@ -11,7 +11,7 @@ myDKG_ID/
 ├── templates/
 │   └── configuration.yml.tpl  # Authelia config template (envsubst placeholders)
 ├── scripts/
-│   └── deploy.sh              # Renders template + manages podman-compose
+│   └── deploy.sh              # Renders template + manages docker compose
 ├── authelia/
 │   ├── .secrets               # Secrets (never committed)
 │   ├── users_database.yml     # User store (Argon2id hashes)
@@ -19,14 +19,14 @@ myDKG_ID/
 │   ├── db.sqlite3             # Runtime (gitignored)
 │   └── notification.txt       # Runtime (gitignored)
 ├── redis/                     # Redis persistence (gitignored)
-├── podman-compose.yml         # Authelia + Redis containers
+├── docker-compose.yml         # Authelia + Redis containers
 ├── create-user.sh             # Password hash helper
 └── README.md
 ```
 
 ## Prerequisites
 
-- `podman-compose`
+- `docker compose`
 - `yq` (YAML processor)
 - `envsubst` (from `gettext`)
 

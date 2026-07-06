@@ -1,0 +1,178 @@
+# =============================================================================
+# myDKG_ID — Authelia Configuration Reference
+# =============================================================================
+# This file documents EVERY configurable parameter in the myDKG_ID stack.
+# Copy this to config/authelia.yaml and adjust values for your deployment.
+#
+# The deploy script reads FINDOKU_ENV (dev|int|prod) and extracts the matching
+# environment block. Parameters marked [PER-ENV] can differ between environments.
+# Parameters marked [GLOBAL] apply to all environments and should match.
+# =============================================================================
+
+
+# ---------------------------------------------------------------------------
+# ENVIRONMENTS
+# ---------------------------------------------------------------------------
+# Each environment defines domain-specific settings and per-environment
+# tuneables. At deploy time, FINDOKU_ENV selects which block to use.
+# ---------------------------------------------------------------------------
+
+environments:
+
+  # -------------------------------------------------------------------------
+  # DEV — Development/staging environment
+  # -------------------------------------------------------------------------
+  dev:
+
+    # Domain suffix for all *.findoku.de services  [PER-ENV]
+    domain: dev.findoku.de
+
+    # Authelia access control policy  [PER-ENV]
+    #   one_factor  = password only (no 2FA)
+    #   two_factor  = password + TOTP (recommended for prod)
+    #   deny        = block all access
+    auth_policy: one_factor
+
+    # Service to redirect to after login (without domain suffix)  [PER-ENV]
+    default_redirect_service: kihub
+
+
+    # ---- Server Tuning ----
+    # These control Authelia's HTTP server behavior.  [PER-ENV]
+    server:
+      buffers:
+        read: 4096        # bytes  — read buffer size (default: 4096)
+        write: 4096       # bytes  — write buffer size (default: 4096)
+      timeouts:
+        read: 6s          # max time to read the full request
+        write: 6s         # max time to write the response
+        idle: 30s         # max idle time for keep-alive connections
+
+
+    # ---- Logging ----
+    # Log verbosity per environment.  [PER-ENV]
+    #   trace | debug | info | warn | error
+    log:
+      level: info
+
+
+    # ---- Session ----
+    # Session lifetime controls.  [PER-ENV]
+    session:
+      expiration: 1h      # hard expiry — session invalid after this (e.g. 1h, 30m, 24h)
+      inactivity: 5m       # idle timeout — session expires if unused for this long
+
+
+    # ---- Rate Limiting (Brute-Force Protection) ----
+    # Controls login attempt throttling.  [PER-ENV]
+    regulation:
+      max_retries: 3       # attempts allowed within find_time before ban
+      find_time: 2m        # sliding window for counting attempts (e.g. 2m, 5m)
+      ban_time: 5m         # ban duration after exceeding max_retries
+
+
+    # ---- Timezone ----
+    # Container timezone. Must be a valid IANA timezone identifier.  [PER-ENV]
+    timezone: Europe/Berlin
+
+
+  # -------------------------------------------------------------------------
+  # INT — Integration/testing environment
+  # -------------------------------------------------------------------------
+  int:
+    domain: int.findoku.de
+    auth_policy: one_factor
+    default_redirect_service: kihub
+
+    server:
+      buffers:
+        read: 4096
+        write: 4096
+      timeouts:
+        read: 6s
+        write: 6s
+        idle: 30s
+
+    log:
+      level: info
+
+    session:
+      expiration: 1h
+      inactivity: 5m
+
+    regulation:
+      max_retries: 3
+      find_time: 2m
+      ban_time: 5m
+
+    timezone: Europe/Berlin
+
+
+  # -------------------------------------------------------------------------
+  # PROD — Production environment
+  # -------------------------------------------------------------------------
+  prod:
+    domain: findoku.de
+    auth_policy: one_factor          # Consider two_factor for production
+    default_redirect_service: kihub
+
+    server:
+      buffers:
+        read: 4096
+        write: 4096
+      timeouts:
+        read: 6s
+        write: 6s
+        idle: 30s
+
+    log:
+      level: info                    # Use 'warn' in production to reduce noise
+
+    session:
+      expiration: 1h
+      inactivity: 5m                # Consider shorter for production (e.g. 5m)
+
+    regulation:
+      max_retries: 3
+      find_time: 2m
+      ban_time: 5m                  # Consider longer for production (e.g. 15m)
+
+    timezone: Europe/Berlin
+
+
+# ---------------------------------------------------------------------------
+# ARGON2ID PASSWORD HASHING  [GLOBAL]
+# ---------------------------------------------------------------------------
+# These parameters control how Authelia hashes passwords and validates logins.
+# ⚠️  CHANGING ANY OF THESE BREAKS ALL EXISTING PASSWORD HASHES.
+# They must match the parameters used by create-user.sh and the values embedded
+# in existing entries in authelia/users_database.yml.
+# Only change these if you are also rehashing all user passwords.
+# ---------------------------------------------------------------------------
+argon2id:
+  algorithm: argon2id        # do not change — Argon2id is the current best practice
+  iterations: 3              # time cost (higher = slower login, stronger hash)
+  key_length: 32             # bytes — derived key length (256-bit)
+  salt_length: 16            # bytes — salt length (128-bit)
+  memory: 65536              # KiB — memory cost (65536 = 64 MiB)
+  parallelism: 4             # CPU threads to use
+
+
+# ---------------------------------------------------------------------------
+# PROTECTED SERVICES  [GLOBAL]
+# ---------------------------------------------------------------------------
+# Services behind Authelia forward-auth SSO.
+# Adding a service here requires a matching access_control rule block
+# in templates/configuration.yml.tpl with the pattern:
+#
+#     - domain:
+#         - '<service>.${FINDOKU_DOMAIN}'
+#       policy: ${FINDOKU_AUTH_POLICY}
+#       resources:
+#         - '^/.*$'
+# ---------------------------------------------------------------------------
+services:
+  - magnus       # Knowledge base
+  - kihub        # AI Hub
+  - neuromark    # Document processing pipeline
+  - genesis      # Project genesis platform

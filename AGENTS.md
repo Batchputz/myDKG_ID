@@ -73,9 +73,9 @@ Paste the resulting hash into `authelia/users_database.yml` following the existi
 ### Inspect Running State
 
 ```bash
-podman ps --filter name=mydkg   # list running containers
-podman exec mydkg-authelia cat /config/notification.txt   # check notification output
-podman exec mydkg-redis redis-cli -h 127.0.0.1 DBSIZE     # count session keys
+docker ps --filter name=mydkg   # list running containers
+docker exec mydkg-authelia cat /config/notification.txt   # check notification output
+docker exec mydkg-redis redis-cli -h 127.0.0.1 DBSIZE     # count session keys
 ```
 
 ## Key Files to Know
@@ -86,7 +86,7 @@ podman exec mydkg-redis redis-cli -h 127.0.0.1 DBSIZE     # count session keys
 - `authelia/.secrets` — Secrets file (JWT, session, storage keys). **Never commit.**
 - `authelia/users_database.yml` — Flat-file user store. Passwords are Argon2id hashes.
 - `authelia/configuration.yml` — **Rendered output** (generated, gitignored). Do not edit directly.
-- `podman-compose.yml` — Container definitions for Authelia + Redis.
+- `docker-compose.yml` — Container definitions for Authelia + Redis.
 
 ## Conventions
 

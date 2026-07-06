@@ -1,7 +1,7 @@
 ---
 # MAGNUS Users Database
 # Generate password hashes with:
-# podman run --rm authelia/authelia:latest authelia crypto hash generate argon2 --password 'YourPassword'
+# docker run --rm authelia/authelia:latest authelia crypto hash generate argon2 --password 'YourPassword'
 
 users:
   admin:

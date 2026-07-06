@@ -4,15 +4,15 @@ theme: light
 server:
   address: 'tcp://0.0.0.0:9091'
   buffers:
-    read: 4096
-    write: 4096
+    read: ${FINDOKU_SERVER_BUFFERS_READ}
+    write: ${FINDOKU_SERVER_BUFFERS_WRITE}
   timeouts:
-    read: 6s
-    write: 6s
-    idle: 30s
+    read: ${FINDOKU_SERVER_TIMEOUTS_READ}
+    write: ${FINDOKU_SERVER_TIMEOUTS_WRITE}
+    idle: ${FINDOKU_SERVER_TIMEOUTS_IDLE}
 
 log:
-  level: info
+  level: ${FINDOKU_LOG_LEVEL}
   format: text
 
 ntp:
@@ -32,6 +32,9 @@ authentication_backend:
     path: /config/users_database.yml
     password:
       algorithm: argon2id
+      # iterations, key_length, salt_length, memory, parallelism are hardcoded
+      # constants — see config/authelia.example.yaml for documentation.
+      # Changing these breaks all existing argon2id password hashes.
       iterations: 3
       key_length: 32
       salt_length: 16
@@ -64,8 +67,8 @@ access_control:
 
 session:
   secret: ${FINDOKU_SESSION_SECRET}
-  expiration: 1h
-  inactivity: 5m
+  expiration: ${FINDOKU_SESSION_EXPIRATION}
+  inactivity: ${FINDOKU_SESSION_INACTIVITY}
   cookies:
     - domain: '${FINDOKU_DOMAIN}'
       authelia_url: '${FINDOKU_AUTH_URL}'
@@ -76,9 +79,9 @@ session:
     port: 6379
 
 regulation:
-  max_retries: 3
-  find_time: 2m
-  ban_time: 5m
+  max_retries: ${FINDOKU_REGULATION_MAX_RETRIES}
+  find_time: ${FINDOKU_REGULATION_FIND_TIME}
+  ban_time: ${FINDOKU_REGULATION_BAN_TIME}
 
 storage:
   encryption_key: ${FINDOKU_STORAGE_SECRET}

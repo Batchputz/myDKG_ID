@@ -3,7 +3,7 @@
 # Usage: FINDOKU_ENV=<dev|int|prod> ./scripts/deploy.sh <up|down|restart|status|render>
 #
 # Reads config/authelia.yaml, renders templates, and manages the compose lifecycle.
-# Requires: yq, envsubst, docker compose OR podman-compose
+# Requires: yq, envsubst, docker compose
 
 set -euo pipefail
 
@@ -13,6 +13,7 @@ CONFIG_FILE="$PROJECT_DIR/config/authelia.yaml"
 SECRETS_FILE="$PROJECT_DIR/authelia/.secrets"
 TEMPLATE="$PROJECT_DIR/templates/configuration.yml.tpl"
 OUTPUT="$PROJECT_DIR/authelia/configuration.yml"
+COMPOSE_FILE="$PROJECT_DIR/docker-compose.yml"
 
 # ---------------------------------------------------------------------------
 # Validate prerequisites
@@ -24,13 +25,8 @@ for cmd in yq envsubst; do
   fi
 done
 
-# Detect container compose tool: prefer docker compose (v2), fall back to podman-compose
-if docker compose version &>/dev/null; then
-  COMPOSE_CMD="docker compose"
-elif command -v podman-compose &>/dev/null; then
-  COMPOSE_CMD="podman-compose"
-else
-  echo "ERROR: Neither 'docker compose' nor 'podman-compose' found in PATH." >&2
+if ! docker compose version &>/dev/null; then
+  echo "ERROR: 'docker compose' is required but not found in PATH." >&2
   exit 1
 fi
 
@@ -66,6 +62,28 @@ FINDOKU_DOMAIN="$(yq -r ".environments.$ENV.domain" "$CONFIG_FILE")"
 FINDOKU_AUTH_POLICY="$(yq -r ".environments.$ENV.auth_policy" "$CONFIG_FILE")"
 DEFAULT_REDIRECT_SVC="$(yq -r ".environments.$ENV.default_redirect_service" "$CONFIG_FILE")"
 
+# Server tuning
+FINDOKU_SERVER_BUFFERS_READ="$(yq -r ".environments.$ENV.server.buffers.read" "$CONFIG_FILE")"
+FINDOKU_SERVER_BUFFERS_WRITE="$(yq -r ".environments.$ENV.server.buffers.write" "$CONFIG_FILE")"
+FINDOKU_SERVER_TIMEOUTS_READ="$(yq -r ".environments.$ENV.server.timeouts.read" "$CONFIG_FILE")"
+FINDOKU_SERVER_TIMEOUTS_WRITE="$(yq -r ".environments.$ENV.server.timeouts.write" "$CONFIG_FILE")"
+FINDOKU_SERVER_TIMEOUTS_IDLE="$(yq -r ".environments.$ENV.server.timeouts.idle" "$CONFIG_FILE")"
+
+# Logging
+FINDOKU_LOG_LEVEL="$(yq -r ".environments.$ENV.log.level" "$CONFIG_FILE")"
+
+# Session tuning
+FINDOKU_SESSION_EXPIRATION="$(yq -r ".environments.$ENV.session.expiration" "$CONFIG_FILE")"
+FINDOKU_SESSION_INACTIVITY="$(yq -r ".environments.$ENV.session.inactivity" "$CONFIG_FILE")"
+
+# Rate limiting
+FINDOKU_REGULATION_MAX_RETRIES="$(yq -r ".environments.$ENV.regulation.max_retries" "$CONFIG_FILE")"
+FINDOKU_REGULATION_FIND_TIME="$(yq -r ".environments.$ENV.regulation.find_time" "$CONFIG_FILE")"
+FINDOKU_REGULATION_BAN_TIME="$(yq -r ".environments.$ENV.regulation.ban_time" "$CONFIG_FILE")"
+
+# Timezone
+FINDOKU_TZ="$(yq -r ".environments.$ENV.timezone" "$CONFIG_FILE")"
+
 # Derived values
 FINDOKU_TOTP_ISSUER="auth.${FINDOKU_DOMAIN}"
 FINDOKU_AUTH_URL="https://auth.${FINDOKU_DOMAIN}"
@@ -81,13 +99,23 @@ FINDOKU_STORAGE_SECRET="$(grep '^STORAGE_SECRET=' "$SECRETS_FILE" | cut -d'=' -f
 export FINDOKU_DOMAIN FINDOKU_AUTH_POLICY FINDOKU_TOTP_ISSUER
 export FINDOKU_AUTH_URL FINDOKU_DEFAULT_REDIRECT
 export FINDOKU_JWT_SECRET FINDOKU_SESSION_SECRET FINDOKU_STORAGE_SECRET
+export FINDOKU_SERVER_BUFFERS_READ FINDOKU_SERVER_BUFFERS_WRITE
+export FINDOKU_SERVER_TIMEOUTS_READ FINDOKU_SERVER_TIMEOUTS_WRITE FINDOKU_SERVER_TIMEOUTS_IDLE
+export FINDOKU_LOG_LEVEL
+export FINDOKU_SESSION_EXPIRATION FINDOKU_SESSION_INACTIVITY
+export FINDOKU_REGULATION_MAX_RETRIES FINDOKU_REGULATION_FIND_TIME FINDOKU_REGULATION_BAN_TIME
+export FINDOKU_TZ
 
 echo "==> Environment: $ENV"
 echo "    Domain:      $FINDOKU_DOMAIN"
 echo "    Auth URL:    $FINDOKU_AUTH_URL"
 echo "    Redirect:    $FINDOKU_DEFAULT_REDIRECT"
 echo "    Policy:      $FINDOKU_AUTH_POLICY"
-echo "    Compose:     $COMPOSE_CMD"
+echo "    Compose:     docker compose"
+echo "    Log level:   $FINDOKU_LOG_LEVEL"
+echo "    Session:     ${FINDOKU_SESSION_EXPIRATION} / ${FINDOKU_SESSION_INACTIVITY}"
+echo "    Regulation:  ${FINDOKU_REGULATION_MAX_RETRIES} retries / ${FINDOKU_REGULATION_FIND_TIME} / ban ${FINDOKU_REGULATION_BAN_TIME}"
+echo "    Timezone:    $FINDOKU_TZ"
 
 # ---------------------------------------------------------------------------
 # Render template
@@ -107,28 +135,24 @@ case "$ACTION" in
   up)
     render_template
     echo "==> Starting containers..."
-    $COMPOSE_CMD -f "$PROJECT_DIR/podman-compose.yml" up -d
+    docker compose -f "$COMPOSE_FILE" up -d
     ;;
   down)
     echo "==> Stopping containers..."
-    $COMPOSE_CMD -f "$PROJECT_DIR/podman-compose.yml" down
+    docker compose -f "$COMPOSE_FILE" down
     ;;
   restart)
     render_template
     echo "==> Restarting containers..."
-    $COMPOSE_CMD -f "$PROJECT_DIR/podman-compose.yml" down
-    $COMPOSE_CMD -f "$PROJECT_DIR/podman-compose.yml" up -d
+    docker compose -f "$COMPOSE_FILE" down
+    docker compose -f "$COMPOSE_FILE" up -d
     ;;
   render)
     render_template
     echo "==> Template rendered (no containers started)."
     ;;
   status)
-    if command -v podman &>/dev/null; then
-      podman ps --filter "name=mydkg" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-    else
-      docker ps --filter "name=mydkg" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-    fi
+    docker ps --filter "name=mydkg" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
     ;;
   *)
     echo "Usage: FINDOKU_ENV=<dev|int|prod> $0 <up|down|restart|render|status>" >&2

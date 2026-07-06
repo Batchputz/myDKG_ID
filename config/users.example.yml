@@ -1,0 +1,63 @@
+# =============================================================================
+# myDKG_ID — User Database Format Reference
+# =============================================================================
+# This documents the schema for authelia/users_database.yml.
+# Each user entry requires a displayname, an argon2id password hash,
+# an email address, and at least one group.
+#
+# ⚠️  THIS FILE IS AN EXAMPLE — contains no real credentials.
+# The real authelia/users_database.yml is committed (hash-only, no plaintext).
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Password Hash Generation
+# ---------------------------------------------------------------------------
+# Use create-user.sh to generate an argon2id hash:
+#
+#     ./create-user.sh 'YourSecurePassword'
+#
+# This runs:
+#   docker run --rm authelia/authelia:latest \
+#     authelia crypto hash generate argon2 --password 'YourSecurePassword'
+#
+# ⚠️  The hash parameters (iterations, memory, parallelism, etc.) must match
+# the argon2id section in config/authelia.yaml. If you change them there,
+# you must rehash ALL user passwords.
+# ---------------------------------------------------------------------------
+
+users:
+
+  # -----------------------------------------------------------------------
+  # Example user entry — copy this block for each new user
+  # -----------------------------------------------------------------------
+  # alice:
+  #   displayname: "Alice Example"       # Human-readable name (shown in portal)
+  #   password: "$argon2id$v=19$m=65536,t=3,p=4$..."  # Hash from create-user.sh
+  #   email: alice@example.com           # Email address
+  #   groups:                            # Group memberships (for access control)
+  #     - users
+  #     - admins                         # Add 'admins' for admin access
+
+  # -----------------------------------------------------------------------
+  # Bootstrap administrator
+  # -----------------------------------------------------------------------
+  admin:
+    displayname: "Administrator"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$REPLACE_ME$REPLACE_ME"
+    email: admin@example.com
+    groups:
+      - admins
+      - users
+
+# ---------------------------------------------------------------------------
+# Field Reference
+# ---------------------------------------------------------------------------
+# displayname  (string)   Shown in the Authelia portal and on consent screens
+# password     (string)   Argon2id hash — NEVER plaintext. Use create-user.sh
+# email        (string)   User email — used for password reset if configured
+# groups       (list)     Access control groups — 'admins' and 'users' by convention
+#
+# Group conventions:
+#   admins  — Full administrative access
+#   users   — Standard user access (all protected services)
+# ---------------------------------------------------------------------------
