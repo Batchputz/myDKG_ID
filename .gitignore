@@ -4,6 +4,9 @@ authelia/db.sqlite3
 authelia/notification.txt
 redis/
 
+# Agent working directories
+.pi-subagents/
+
 # Secrets — never commit
 authelia/.secrets
 .env
