@@ -58,6 +58,7 @@ FINDOKU_ENV=dev ./scripts/deploy.sh status     # container status
 - `magnus` — Knowledge base
 - `kihub` — AI Hub
 - `neuromark` — Document processing
+- `genesis` — Project genesis platform
 
 To add a service: update `config/authelia.yaml` (services list) and `templates/configuration.yml.tpl` (access_control rule).
 

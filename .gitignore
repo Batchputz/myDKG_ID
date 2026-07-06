@@ -1,4 +1,5 @@
 # Runtime data
+authelia/configuration.yml
 authelia/db.sqlite3
 authelia/notification.txt
 redis/

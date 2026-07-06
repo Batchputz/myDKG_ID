@@ -40,6 +40,7 @@ Services protected behind Authelia forward-auth (defined in `config/authelia.yam
 - **magnus** — Knowledge base
 - **kihub** — AI Hub
 - **neuromark** — Document processing pipeline
+- **genesis** — Project genesis platform
 
 To add a new service: add it to `config/authelia.yaml` under `services`, then add a matching `access_control` rule block in `templates/configuration.yml.tpl`.
 
